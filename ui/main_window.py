@@ -38,18 +38,31 @@ class MainWindow:
         button.bind('<Enter>', lambda e: button.config(bg=hover_color))
         button.bind('<Leave>', lambda e: button.config(bg=original_color))
     
-    def create_gradient(self, width, height, color1, color2):
-        gradient = Image.new('RGB', (width, height), color1)
+    def create_gradient(self, width, height, *colors):
+        gradient = Image.new('RGB', (width, height))
         draw = gradient.load()
         
-        r1, g1, b1 = tuple(int(color1[i:i+2], 16) for i in (1, 3, 5))
-        r2, g2, b2 = tuple(int(color2[i:i+2], 16) for i in (1, 3, 5))
+        rgb_colors = []
+        for color in colors:
+            color = color.lstrip('#')
+            rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+            rgb_colors.append(rgb)
         
+        num_colors = len(rgb_colors)
         for y in range(height):
-            ratio = y / height
-            r = int(r1 + (r2 - r1) * ratio)
-            g = int(g1 + (g2 - g1) * ratio)
-            b = int(b1 + (b2 - b1) * ratio)
+            ratio = y / height * (num_colors - 1)
+            index = int(ratio)
+            local_ratio = ratio - index
+            
+            if index >= num_colors - 1:
+                r, g, b = rgb_colors[-1]
+            else:
+                r1, g1, b1 = rgb_colors[index]
+                r2, g2, b2 = rgb_colors[index + 1]
+                r = int(r1 + (r2 - r1) * local_ratio)
+                g = int(g1 + (g2 - g1) * local_ratio)
+                b = int(b1 + (b2 - b1) * local_ratio)
+            
             for x in range(width):
                 draw[x, y] = (r, g, b)
         
@@ -62,7 +75,7 @@ class MainWindow:
         canvas = tk.Canvas(self.root, width=1200, height=700, highlightthickness=0)
         canvas.pack(expand=True, fill='both')
         
-        gradient_img = self.create_gradient(1200, 700, '#0a734a', '#75be65')
+        gradient_img = self.create_gradient(1200, 700, '#106e49', '#33a951', '#9bcc70')
         gradient_photo = ImageTk.PhotoImage(gradient_img)
         canvas.create_image(0, 0, anchor='nw', image=gradient_photo)
         canvas.image = gradient_photo
