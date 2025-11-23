@@ -1,7 +1,7 @@
 EXCEL_FILE = "FoodManagement.xlsx"
 
 WINDOW_GEOMETRY = "1200x700"
-WINDOW_BG = '#f0f0f0'
+WINDOW_BG = '#9ef08e'
 
 COLORS = {
     'primary': '#3498db',
@@ -15,12 +15,14 @@ COLORS = {
     'darker': '#34495e',
     'light_bg': '#ecf0f1',
     'white': 'white',
+    'pink': '#FF69B4',
     'row_odd': '#ffffff',
-    'row_even': '#f8f9fa'
+    'row_even': '#f8f9fa',
+    'pn': '#077149'
 }
 
 FONTS = {
-    'title': ('Arial', 24, 'bold'),
+    'title': ('Arial', 25, 'bold'),
     'header': ('Arial', 18, 'bold'),
     'section': ('Arial', 12, 'bold'),
     'button_large': ('Arial', 14, 'bold'),

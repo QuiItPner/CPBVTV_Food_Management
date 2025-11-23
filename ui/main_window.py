@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 from config import COLORS, FONTS, WINDOW_GEOMETRY, WINDOW_BG
 from .products_page import ProductsPage
 from .meal_registration_page import MealRegistrationPage
+from PIL import Image, ImageTk
+import os
 
 class MainWindow:
     def __init__(self, root, data_manager):
@@ -13,26 +15,113 @@ class MainWindow:
         self.root.geometry(WINDOW_GEOMETRY)
         self.root.configure(bg=WINDOW_BG)
         
+        try:
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "images", "app_icon.png")
+            icon = Image.open(icon_path)
+            icon_photo = ImageTk.PhotoImage(icon)
+            self.root.iconphoto(True, icon_photo)
+        except Exception as e:
+            print(f"Could not load icon: {e}")
+        
         self.show_main_menu()
+    
+    def lighten_color(self, hex_color, factor=0.2):
+        hex_color = hex_color.lstrip('#')
+        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        r = int(r + (255 - r) * factor)
+        g = int(g + (255 - g) * factor)
+        b = int(b + (255 - b) * factor)
+        return f'#{r:02x}{g:02x}{b:02x}'
+    
+    def bind_hover(self, button, original_color):
+        hover_color = self.lighten_color(original_color)
+        button.bind('<Enter>', lambda e: button.config(bg=hover_color))
+        button.bind('<Leave>', lambda e: button.config(bg=original_color))
+    
+    def create_gradient(self, width, height, color1, color2):
+        gradient = Image.new('RGB', (width, height), color1)
+        draw = gradient.load()
+        
+        r1, g1, b1 = tuple(int(color1[i:i+2], 16) for i in (1, 3, 5))
+        r2, g2, b2 = tuple(int(color2[i:i+2], 16) for i in (1, 3, 5))
+        
+        for y in range(height):
+            ratio = y / height
+            r = int(r1 + (r2 - r1) * ratio)
+            g = int(g1 + (g2 - g1) * ratio)
+            b = int(b1 + (b2 - b1) * ratio)
+            for x in range(width):
+                draw[x, y] = (r, g, b)
+        
+        return gradient
     
     def show_main_menu(self):
         for widget in self.root.winfo_children():
             widget.destroy()
         
-        main_frame = tk.Frame(self.root, bg=WINDOW_BG)
-        main_frame.pack(expand=True, fill='both', padx=20, pady=20)
+        canvas = tk.Canvas(self.root, width=1200, height=700, highlightthickness=0)
+        canvas.pack(expand=True, fill='both')
         
-        title_label = tk.Label(
-            main_frame,
-            text="APP QUẢN LÍ THỰC PHẨM CP BVTV",
+        gradient_img = self.create_gradient(1200, 700, '#0a734a', '#75be65')
+        gradient_photo = ImageTk.PhotoImage(gradient_img)
+        canvas.create_image(0, 0, anchor='nw', image=gradient_photo)
+        canvas.image = gradient_photo
+        
+        try:
+            images_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "images")
+            fruits_dir = os.path.join(images_dir, "fruits")
+            products_dir = os.path.join(images_dir, "products")
+            
+            banana_img = Image.open(os.path.join(fruits_dir, "banana.png"))
+            banana_img = banana_img.resize((80, 80), Image.Resampling.LANCZOS)
+            banana_photo = ImageTk.PhotoImage(banana_img)
+            
+            watermelon_img = Image.open(os.path.join(fruits_dir, "watermelon.png"))
+            watermelon_img = watermelon_img.resize((80, 80), Image.Resampling.LANCZOS)
+            watermelon_photo = ImageTk.PhotoImage(watermelon_img)
+            
+            product1_img = Image.open(os.path.join(products_dir, "Asset 3@3x.png"))
+            product1_img = product1_img.resize((80, 80), Image.Resampling.LANCZOS)
+            product1_photo = ImageTk.PhotoImage(product1_img)
+            
+            product2_img = Image.open(os.path.join(products_dir, "Asset 4@3x.png"))
+            product2_img = product2_img.resize((80, 80), Image.Resampling.LANCZOS)
+            product2_photo = ImageTk.PhotoImage(product2_img)
+            
+            product3_img = Image.open(os.path.join(products_dir, "Asset 5@3x.png"))
+            product3_img = product3_img.resize((80, 80), Image.Resampling.LANCZOS)
+            product3_photo = ImageTk.PhotoImage(product3_img)
+            
+            canvas.create_image(60, 50, image=banana_photo)
+            canvas.banana_photo = banana_photo
+            
+            canvas.create_image(1100, 55, image=product1_photo)
+            canvas.product1_photo = product1_photo
+            
+            canvas.create_image(50, 280, image=watermelon_photo)
+            canvas.watermelon_photo = watermelon_photo
+            
+            canvas.create_image(1090, 315, image=product2_photo)
+            canvas.product2_photo = product2_photo
+            
+            canvas.create_image(55, 605, image=product3_photo)
+            canvas.product3_photo = product3_photo
+            
+            canvas.create_image(1105, 600, image=watermelon_photo)
+            canvas.watermelon_photo2 = watermelon_photo
+        except Exception as e:
+            print(f"Could not load images: {e}")
+        
+        canvas.create_text(
+            600, 80,
+            text="ỨNG DỤNG QUẢN LÍ THỰC PHẨM CP BVTV PHÚ NÔNG",
             font=FONTS['title'],
-            bg=WINDOW_BG,
-            fg=COLORS['dark']
+            fill='white'
         )
-        title_label.pack(pady=40)
         
+        btn_products_frame = tk.Frame(canvas, bg='white', bd=2)
         btn_products = tk.Button(
-            main_frame,
+            btn_products_frame,
             text="CÁC MẶT HÀNG NÔNG SẢN - THỰC PHẨM",
             font=FONTS['button_large'],
             bg=COLORS['primary'],
@@ -40,12 +129,17 @@ class MainWindow:
             width=35,
             height=2,
             command=self.show_products_page,
-            cursor='hand2'
+            cursor='hand2',
+            bd=0,
+            relief='flat'
         )
-        btn_products.pack(pady=10)
+        btn_products.pack()
+        self.bind_hover(btn_products, COLORS['primary'])
+        canvas.create_window(600, 180, window=btn_products_frame)
         
+        btn_meal_registration_frame = tk.Frame(canvas, bg='white', bd=2)
         btn_meal_registration = tk.Button(
-            main_frame,
+            btn_meal_registration_frame,
             text="DANH SÁCH CNV ĐĂNG KÝ SUẤT ĂN",
             font=FONTS['button_large'],
             bg=COLORS['success'],
@@ -53,25 +147,35 @@ class MainWindow:
             width=35,
             height=2,
             command=self.show_meal_registration_page,
-            cursor='hand2'
+            cursor='hand2',
+            bd=0,
+            relief='flat'
         )
-        btn_meal_registration.pack(pady=10)
+        btn_meal_registration.pack()
+        self.bind_hover(btn_meal_registration, COLORS['success'])
+        canvas.create_window(600, 260, window=btn_meal_registration_frame)
         
+        btn_update_employee_frame = tk.Frame(canvas, bg='white', bd=2)
         btn_update_employee = tk.Button(
-            main_frame,
+            btn_update_employee_frame,
             text="CẬP NHẬT DANH SÁCH NHÂN VIÊN",
             font=FONTS['button_large'],
-            bg=COLORS['warning'],
+            bg=COLORS['pink'],
             fg=COLORS['white'],
             width=35,
             height=2,
             command=self.show_employee_management,
-            cursor='hand2'
+            cursor='hand2',
+            bd=0,
+            relief='flat'
         )
-        btn_update_employee.pack(pady=10)
+        btn_update_employee.pack()
+        self.bind_hover(btn_update_employee, COLORS['pink'])
+        canvas.create_window(600, 340, window=btn_update_employee_frame)
         
+        btn_statistics_frame = tk.Frame(canvas, bg='white', bd=2)
         btn_statistics = tk.Button(
-            main_frame,
+            btn_statistics_frame,
             text="THỐNG KÊ",
             font=FONTS['button_large'],
             bg=COLORS['info'],
@@ -79,20 +183,29 @@ class MainWindow:
             width=35,
             height=2,
             command=self.show_statistics,
-            cursor='hand2'
+            cursor='hand2',
+            bd=0,
+            relief='flat'
         )
-        btn_statistics.pack(pady=10)
+        btn_statistics.pack()
+        self.bind_hover(btn_statistics, COLORS['info'])
+        canvas.create_window(600, 420, window=btn_statistics_frame)
         
+        exit_btn_frame = tk.Frame(canvas, bg='white', bd=2)
         exit_btn = tk.Button(
-            main_frame,
+            exit_btn_frame,
             text="Thoát",
             font=FONTS['section'],
             bg=COLORS['danger'],
             fg=COLORS['white'],
             width=15,
-            command=self.root.quit
+            command=self.root.quit,
+            bd=0,
+            relief='flat'
         )
-        exit_btn.pack(pady=20)
+        exit_btn.pack()
+        self.bind_hover(exit_btn, COLORS['danger'])
+        canvas.create_window(600, 520, window=exit_btn_frame)
     
     def show_products_page(self):
         ProductsPage(self.root, self.data_manager, self.show_main_menu)
