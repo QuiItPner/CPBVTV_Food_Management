@@ -138,7 +138,7 @@ class DataManager:
     def get_monthly_meal_file(self, date_obj):
         month = date_obj.strftime("%m")
         year = date_obj.strftime("%Y")
-        return f"DAT HANG TU {month}-{year}.xlsx"
+        return f"DatHangTu{month}-{year}.xlsx"
     
     def load_meal_registration(self, date_obj):
         meal_file = self.get_monthly_meal_file(date_obj)
@@ -577,7 +577,7 @@ class DataManager:
         from datetime import date
         
         month_str = str(month).zfill(2)
-        source_file = f"DAT HANG TU {month_str}-{year}.xlsx"
+        source_file = f"DatHangTu{month_str}-{year}.xlsx"
         
         if not os.path.exists(source_file):
             raise Exception(f"Không tìm thấy file {source_file}")
@@ -611,13 +611,17 @@ class DataManager:
                         break
                 
                 for row_idx, row in enumerate(ws_day.iter_rows(min_row=1, values_only=True), 1):
-                    if len(row) > 0 and row[0] and 'ĐẶT HÀNG THỰC PHẨM' in str(row[0]).upper():
-                        for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
-                            if len(cost_row) > 1 and cost_row[1] and str(cost_row[1]).strip().lower() == 'tổng cộng':
-                                if len(cost_row) > 6 and cost_row[6] is not None:
-                                    total_cost = float(cost_row[6])
-                                break
-                        break
+                    if len(row) > 0 and row[0]:
+                        row_text = str(row[0]).upper().strip()
+                        if 'ĐẶT HÀNG' in row_text and 'THỰC PHẨM' in row_text:
+                            for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
+                                if len(cost_row) > 1 and cost_row[1]:
+                                    cell_text = str(cost_row[1]).strip().lower()
+                                    if 'tổng cộng' in cell_text or 'tong cong' in cell_text:
+                                        if len(cost_row) > 6 and cost_row[6] is not None:
+                                            total_cost = float(cost_row[6])
+                                        break
+                            break
             
             avg_price = total_cost / total_meals if total_meals > 0 else 0
             
@@ -657,12 +661,12 @@ class DataManager:
         from datetime import date
         
         month_str = str(month).zfill(2)
-        source_file = f"DAT HANG TU {month_str}-{year}.xlsx"
+        source_file = f"DatHangTu{month_str}-{year}.xlsx"
         
         if not os.path.exists(source_file):
             raise Exception(f"Không tìm thấy file {source_file}")
         
-        stats_file = f"Tong hop chi phi trong thang nam {year}.xlsx"
+        stats_file = f"TongHopChiPhiTrongThangNam{year}.xlsx"
         
         if os.path.exists(stats_file):
             wb_stats = load_workbook(stats_file)
@@ -739,15 +743,19 @@ class DataManager:
                 
                 has_menu_data = False
                 for row_idx, row in enumerate(ws_day.iter_rows(min_row=1, values_only=True), 1):
-                    if len(row) > 0 and row[0] and 'ĐẶT HÀNG THỰC PHẨM' in str(row[0]).upper():
-                        has_menu_data = True
-                        
-                        for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
-                            if len(cost_row) > 1 and cost_row[1] and str(cost_row[1]).strip().lower() == 'tổng cộng':
-                                if len(cost_row) > 6 and cost_row[6] is not None:
-                                    total_cost = float(cost_row[6])
-                                break
-                        break
+                    if len(row) > 0 and row[0]:
+                        row_text = str(row[0]).upper().strip()
+                        if 'ĐẶT HÀNG' in row_text and 'THỰC PHẨM' in row_text:
+                            has_menu_data = True
+                            
+                            for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
+                                if len(cost_row) > 1 and cost_row[1]:
+                                    cell_text = str(cost_row[1]).strip().lower()
+                                    if 'tổng cộng' in cell_text or 'tong cong' in cell_text:
+                                        if len(cost_row) > 6 and cost_row[6] is not None:
+                                            total_cost = float(cost_row[6])
+                                        break
+                            break
             
             avg_price = total_cost / total_meals if total_meals > 0 else 0
             
