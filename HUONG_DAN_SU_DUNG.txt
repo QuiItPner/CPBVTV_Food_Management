@@ -1,0 +1,95 @@
+================================================================================
+    ỨNG DỤNG QUẢN LÝ THỰC PHẨM - CP BVTV PHÚ NÔNG
+================================================================================
+
+I. HƯỚNG DẪN CÀI ĐẶT
+--------------------
+1. Copy toàn bộ file từ thư mục "dist" sang máy tính cần sử dụng
+
+2. Chạy file "QuanLyThucPham.exe" để khởi động ứng dụng
+
+3. QUAN TRỌNG: 
+   - File "FoodManagement.xlsx" chứa dữ liệu master (danh sách sản phẩm, nhân viên)
+   - Các file "DatHangTu*.xlsx" chứa dữ liệu đăng ký suất ăn theo tháng
+   - File "TongHopChiPhiTrongThangNam*.xlsx" chứa báo cáo thống kê
+   - KHÔNG XÓA hoặc DI CHUYỂN các file này khỏi cùng thư mục với file .exe
+
+
+II. CẤU TRÚC THỦ MỤC
+--------------------
+dist/
+├── QuanLyThucPham.exe      (File ứng dụng chính)
+├── FoodManagement.xlsx     (Dữ liệu master - tự động tạo nếu chưa có)
+├── DatHangTu*.xlsx         (Dữ liệu đăng ký - tự động tạo khi sử dụng)
+└── TongHopChiPhi*.xlsx     (Báo cáo thống kê - tạo khi xuất báo cáo)
+
+
+III. CHỨC NĂNG CHÍNH
+--------------------
+1. QUẢN LÝ MẶT HÀNG
+   - Xem danh sách sản phẩm và trái cây
+   - Thêm, sửa, xóa mặt hàng
+   - Chỉnh sửa tiêu đề trang
+
+2. ĐĂNG KÝ SUẤT ĂN
+   - Chọn ngày đăng ký
+   - Quản lý danh sách nhân viên đăng ký
+   - Lập thực đơn buổi sáng và chiều
+   - Xuất file Excel theo ngày
+
+3. CẬP NHẬT NHÂN VIÊN
+   - Thêm nhân viên mới
+   - Sửa thông tin nhân viên
+   - Xóa nhân viên
+   - Dữ liệu được lưu trong sheet "Meal_20251120"
+
+4. THỐNG KÊ
+   - Chọn tháng/năm cần thống kê
+   - Xem trước dữ liệu
+   - Xuất báo cáo ra file Excel
+   - File thống kê: TongHopChiPhiTrongThangNam{năm}.xlsx
+
+
+IV. LƯU Ý KHI SỬ DỤNG
+---------------------
+1. Luôn giữ file .exe cùng thư mục với các file dữ liệu Excel
+
+2. Không mở các file Excel khi đang sử dụng ứng dụng
+
+3. Sao lưu dữ liệu định kỳ bằng cách copy các file .xlsx
+
+4. Khi chuyển sang năm mới (2026, 2027...):
+   - Ứng dụng tự động tạo file mới theo năm
+   - Ví dụ: DatHangTu01-2026.xlsx, TongHopChiPhiTrongThangNam2026.xlsx
+
+5. File master "FoodManagement.xlsx" chứa:
+   - Sheet "Products": Danh sách sản phẩm
+   - Sheet "Fruits": Danh sách trái cây
+   - Sheet "Dat hang thuc phẩm": Danh sách nhân viên
+   - Sheet "Meal_20251120": Database nhân viên đăng ký
+   - Sheet "Settings": Cấu hình ứng dụng
+
+
+V. XỬ LÝ LỖI
+-------------
+1. Nếu ứng dụng không chạy:
+   - Kiểm tra Windows Defender/Antivirus (có thể chặn file .exe)
+   - Chuột phải > Properties > Unblock
+   - Chạy với quyền Administrator
+
+2. Nếu lỗi "File đang được mở":
+   - Đóng tất cả file Excel đang mở
+   - Khởi động lại ứng dụng
+
+3. Nếu mất dữ liệu:
+   - Khôi phục từ bản backup
+   - File dữ liệu luôn ở cùng thư mục với QuanLyThucPham.exe
+
+
+VI. THÔNG TIN HỖ TRỢ
+--------------------
+Phiên bản: 1.0
+Ngày phát hành: 11/12/2025
+Hỗ trợ: Windows 10/11
+
+================================================================================

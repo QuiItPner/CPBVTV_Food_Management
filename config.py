@@ -1,4 +1,4 @@
-EXCEL_FILE = "FoodManagement.xlsx"
+EXCEL_FILE = "excel_files/FoodManagement.xlsx"
 
 WINDOW_GEOMETRY = "1200x700"
 WINDOW_BG = '#9ef08e'

@@ -7,6 +7,7 @@ from config import EXCEL_FILE
 class DataManager:
     def __init__(self):
         self.excel_file = EXCEL_FILE
+        os.makedirs("excel_files", exist_ok=True)
         self.init_excel()
     
     def init_excel(self):
@@ -27,6 +28,9 @@ class DataManager:
             ws_settings.append(["SettingKey", "SettingValue"])
             ws_settings.append(["PageTitle", "CÁC MẶT HÀNG NÔNG SẢN - THỰC PHẨM"])
             
+            ws_menus = wb.create_sheet("Menus")
+            ws_menus.append(["MenuName", "ProductName", "Qty", "Unit", "Price"])
+            
             wb.save(self.excel_file)
         else:
             wb = load_workbook(self.excel_file)
@@ -39,6 +43,11 @@ class DataManager:
             if "Dat hang thuc phẩm" not in wb.sheetnames:
                 ws_employees = wb.create_sheet("Dat hang thuc phẩm")
                 ws_employees.append(["STT", "HO & TEN", "BO PHAN"])
+                wb.save(self.excel_file)
+            
+            if "Menus" not in wb.sheetnames:
+                ws_menus = wb.create_sheet("Menus")
+                ws_menus.append(["MenuName", "ProductName", "Qty", "Unit", "Price"])
                 wb.save(self.excel_file)
             
             wb.close()
@@ -134,11 +143,10 @@ class DataManager:
         wb.close()
         employees.sort(key=lambda x: x['stt'])
         return employees
-    
     def get_monthly_meal_file(self, date_obj):
         month = date_obj.strftime("%m")
         year = date_obj.strftime("%Y")
-        return f"DatHangTu{month}-{year}.xlsx"
+        return f"excel_files/DatHangTu{month}-{year}.xlsx"
     
     def load_meal_registration(self, date_obj):
         meal_file = self.get_monthly_meal_file(date_obj)
@@ -577,7 +585,7 @@ class DataManager:
         from datetime import date
         
         month_str = str(month).zfill(2)
-        source_file = f"DatHangTu{month_str}-{year}.xlsx"
+        source_file = f"excel_files/DatHangTu{month_str}-{year}.xlsx"
         
         if not os.path.exists(source_file):
             raise Exception(f"Không tìm thấy file {source_file}")
@@ -632,41 +640,45 @@ class DataManager:
                 'total_cost': total_cost,
                 'avg_price': avg_price,
                 'weekday': weekday,
-                'note': 'Nghỉ lễ' if total_meals == 0 else ''
+                'note': ''
             })
         
         wb_source.close()
         
         week_avg_prices = []
+        week_indices = []
         for idx, day_data in enumerate(data_rows):
             avg_price = day_data['avg_price']
             weekday = day_data['weekday']
             
             if avg_price > 0:
-                week_avg_prices.append(avg_price)
+                if weekday in [0, 1, 2, 3, 4]:
+                    week_avg_prices.append(avg_price)
+                week_indices.append(idx)
             
             if weekday == 6 or idx == len(data_rows) - 1:
                 if week_avg_prices:
                     week_avg = sum(week_avg_prices) / len(week_avg_prices)
                     
-                    for back_idx in range(len(week_avg_prices)):
-                        data_rows[idx - back_idx]['week_avg'] = week_avg
+                    for week_idx in week_indices:
+                        data_rows[week_idx]['week_avg'] = week_avg
                     
                     week_avg_prices = []
+                    week_indices = []
         
         return data_rows
     
-    def generate_monthly_statistics(self, month, year):
+    def generate_monthly_statistics(self, month, year, data_rows=None):
         import calendar
         from datetime import date
         
         month_str = str(month).zfill(2)
-        source_file = f"DatHangTu{month_str}-{year}.xlsx"
+        source_file = f"excel_files/DatHangTu{month_str}-{year}.xlsx"
         
         if not os.path.exists(source_file):
             raise Exception(f"Không tìm thấy file {source_file}")
         
-        stats_file = f"TongHopChiPhiTrongThangNam{year}.xlsx"
+        stats_file = f"excel_files/TongHopChiPhiTrongThangNam{year}.xlsx"
         
         if os.path.exists(stats_file):
             wb_stats = load_workbook(stats_file)
@@ -699,7 +711,6 @@ class DataManager:
             top=Side(style='thin'),
             bottom=Side(style='thin')
         )
-        
         headers = ["Thứ", "Ngày", "Số phần ăn\nTrưa + Chiều", "Chi phí\nthực phẩm", "Đơn giá\nmỗi suất ăn", "Trung bình suất\năn của tuần", "Ghi chú"]
         ws_stats.append(headers)
         
@@ -710,68 +721,71 @@ class DataManager:
             cell.border = border
         
         ws_stats.row_dimensions[4].height = 40
-        
-        num_days = calendar.monthrange(year, month)[1]
-        
-        wb_source = load_workbook(source_file)
-        
-        days_of_week = ["Hai", "Ba", "Tư", "Năm", "Sáu", "Bảy", "CN"]
-        
-        data_rows = []
-        
-        for day in range(1, num_days + 1):
-            day_str = str(day).zfill(2)
-            sheet_date_name = f"{day_str}-{month_str}-{year}"
+        if data_rows is None:
+            num_days = calendar.monthrange(year, month)[1]
             
-            current_date = date(year, month, day)
-            weekday = current_date.weekday()
-            day_name = days_of_week[weekday]
+            wb_source = load_workbook(source_file)
             
-            total_meals = 0
-            total_cost = 0
+            days_of_week = ["Hai", "Ba", "Tư", "Năm", "Sáu", "Bảy", "CN"]
             
-            if sheet_date_name in wb_source.sheetnames:
-                ws_day = wb_source[sheet_date_name]
+            data_rows = []
+            
+            for day in range(1, num_days + 1):
+                day_str = str(day).zfill(2)
+                sheet_date_name = f"{day_str}-{month_str}-{year}"
                 
-                for row in ws_day.iter_rows(min_row=2, values_only=True):
-                    if len(row) > 1 and row[1] and str(row[1]).strip().lower() == 'tổng cộng':
-                        if len(row) > 3 and row[3] is not None:
-                            total_meals += float(row[3])
-                        if len(row) > 4 and row[4] is not None:
-                            total_meals += float(row[4])
-                        break
+                current_date = date(year, month, day)
+                weekday = current_date.weekday()
+                day_name = days_of_week[weekday]
                 
-                has_menu_data = False
-                for row_idx, row in enumerate(ws_day.iter_rows(min_row=1, values_only=True), 1):
-                    if len(row) > 0 and row[0]:
-                        row_text = str(row[0]).upper().strip()
-                        if 'ĐẶT HÀNG' in row_text and 'THỰC PHẨM' in row_text:
-                            has_menu_data = True
-                            
-                            for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
-                                if len(cost_row) > 1 and cost_row[1]:
-                                    cell_text = str(cost_row[1]).strip().lower()
-                                    if 'tổng cộng' in cell_text or 'tong cong' in cell_text:
-                                        if len(cost_row) > 6 and cost_row[6] is not None:
-                                            total_cost = float(cost_row[6])
-                                        break
+                total_meals = 0
+                total_cost = 0
+                
+                if sheet_date_name in wb_source.sheetnames:
+                    ws_day = wb_source[sheet_date_name]
+                    
+                    for row in ws_day.iter_rows(min_row=2, values_only=True):
+                        if len(row) > 1 and row[1] and str(row[1]).strip().lower() == 'tổng cộng':
+                            if len(row) > 3 and row[3] is not None:
+                                total_meals += float(row[3])
+                            if len(row) > 4 and row[4] is not None:
+                                total_meals += float(row[4])
                             break
+                    
+                    has_menu_data = False
+                    for row_idx, row in enumerate(ws_day.iter_rows(min_row=1, values_only=True), 1):
+                        if len(row) > 0 and row[0]:
+                            row_text = str(row[0]).upper().strip()
+                            if 'ĐẶT HÀNG' in row_text and 'THỰC PHẨM' in row_text:
+                                has_menu_data = True
+                                
+                                for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
+                                    if len(cost_row) > 1 and cost_row[1]:
+                                        cell_text = str(cost_row[1]).strip().lower()
+                                        if 'tổng cộng' in cell_text or 'tong cong' in cell_text:
+                                            if len(cost_row) > 6 and cost_row[6] is not None:
+                                                total_cost = float(cost_row[6])
+                                            break
+                                break
+                
+                avg_price = total_cost / total_meals if total_meals > 0 else 0
+                
+                data_rows.append({
+                    'day_name': day_name,
+                    'day': day,
+                    'total_meals': total_meals,
+                    'total_cost': total_cost,
+                    'avg_price': avg_price,
+                    'weekday': weekday,
+                    'note': ''
+                })
             
-            avg_price = total_cost / total_meals if total_meals > 0 else 0
-            
-            data_rows.append({
-                'day_name': day_name,
-                'day': day,
-                'total_meals': total_meals,
-                'total_cost': total_cost,
-                'avg_price': avg_price,
-                'weekday': weekday
-            })
-        
-        wb_source.close()
+            wb_source.close()
         
         current_row = 5
         week_avg_prices = []
+        week_rows = []
+        week_workday_rows = []
         
         yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
         red_fill = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
@@ -783,6 +797,10 @@ class DataManager:
             total_cost = day_data['total_cost']
             avg_price = day_data['avg_price']
             weekday = day_data['weekday']
+            note = day_data.get('note', '')
+            
+            if weekday in [0, 1, 2, 3, 4]:
+                week_workday_rows.append(current_row)
             
             if total_meals == 0:
                 ws_stats.append([
@@ -792,21 +810,20 @@ class DataManager:
                     '-',
                     '',
                     '',
-                    'Nghỉ lễ' if weekday == 6 else 'Nghỉ lễ'
+                    note
                 ])
                 
                 for col_idx in range(1, 8):
                     cell = ws_stats.cell(row=current_row, column=col_idx)
                     cell.border = border
                     cell.alignment = Alignment(horizontal="center", vertical="center")
-                    if col_idx == 7:
-                        cell.font = Font(italic=True, color="FF0000")
-                        cell.alignment = Alignment(horizontal="center", vertical="center")
                     if weekday in [5, 6]:
                         cell.fill = yellow_fill
             else:
                 if avg_price > 0:
-                    week_avg_prices.append(avg_price)
+                    if weekday in [0, 1, 2, 3, 4]:
+                        week_avg_prices.append(avg_price)
+                    week_rows.append(current_row)
                 
                 ws_stats.append([
                     day_name,
@@ -815,7 +832,7 @@ class DataManager:
                     total_cost,
                     avg_price if avg_price > 0 else '',
                     '',
-                    ''
+                    note
                 ])
                 
                 for col_idx in range(1, 8):
@@ -837,16 +854,23 @@ class DataManager:
                         cell.fill = yellow_fill
             
             if weekday == 6 or idx == len(data_rows) - 1:
-                if week_avg_prices:
-                    week_avg = sum(week_avg_prices) / len(week_avg_prices)
+                if week_workday_rows:
+                    first_row = week_workday_rows[0]
+                    last_row = week_workday_rows[-1]
                     
-                    for back_idx in range(len(week_avg_prices)):
-                        week_row = current_row - back_idx
-                        ws_stats.cell(row=week_row, column=6, value=week_avg)
-                        ws_stats.cell(row=week_row, column=6).number_format = '#,##0'
-                        ws_stats.cell(row=week_row, column=6).alignment = Alignment(horizontal="center", vertical="center")
+                    if first_row != last_row:
+                        ws_stats.merge_cells(f'F{first_row}:F{last_row}')
+                    
+                    if week_avg_prices:
+                        week_avg = sum(week_avg_prices) / len(week_avg_prices)
+                        ws_stats.cell(row=first_row, column=6, value=week_avg)
+                        ws_stats.cell(row=first_row, column=6).number_format = '#,##0'
+                    
+                    ws_stats.cell(row=first_row, column=6).alignment = Alignment(horizontal="center", vertical="center")
                     
                     week_avg_prices = []
+                    week_rows = []
+                    week_workday_rows = []
             
             current_row += 1
         
@@ -862,3 +886,175 @@ class DataManager:
         wb_stats.close()
         
         return f"Đã tạo thống kê tháng {month}/{year}\nFile: {stats_file}"
+    
+    def get_all_menu_names(self):
+        wb = load_workbook(self.excel_file)
+        ws = wb["Menus"]
+        
+        menu_names = set()
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[0]:
+                menu_names.add(row[0])
+        
+        wb.close()
+        return sorted(list(menu_names))
+    
+    def get_menu_items(self, menu_name):
+        wb = load_workbook(self.excel_file)
+        ws = wb["Menus"]
+        
+        items = {'lunch': [], 'dinner': []}
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[0] and row[0].lower() == menu_name.lower():
+                meal_type = row[1] if row[1] in ['lunch', 'dinner'] else 'lunch'
+                items[meal_type].append({
+                    'product_name': row[2],
+                    'qty': float(row[3]) if row[3] else 0.0,
+                    'unit': row[4],
+                    'price': float(row[5]) if row[5] else 0.0
+                })
+        
+        wb.close()
+        return items
+    
+    def save_menu(self, menu_name, lunch_items, dinner_items):
+        wb = load_workbook(self.excel_file)
+        ws = wb["Menus"]
+        
+        rows_to_delete = []
+        for idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
+            if row[0].value and row[0].value.lower() == menu_name.lower():
+                rows_to_delete.append(idx)
+        
+        for row_idx in reversed(rows_to_delete):
+            ws.delete_rows(row_idx, 1)
+        
+        for item in lunch_items:
+            ws.append([
+                menu_name,
+                'lunch',
+                item['product_name'],
+                item['qty'],
+                item['unit'],
+                item['price']
+            ])
+        
+        for item in dinner_items:
+            ws.append([
+                menu_name,
+                'dinner',
+                item['product_name'],
+                item['qty'],
+                item['unit'],
+                item['price']
+            ])
+        
+        wb.save(self.excel_file)
+        wb.close()
+    
+    def delete_menu(self, menu_name):
+        wb = load_workbook(self.excel_file)
+        ws = wb["Menus"]
+        
+        rows_to_delete = []
+        for idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
+            if row[0].value and row[0].value.lower() == menu_name.lower():
+                rows_to_delete.append(idx)
+        
+        for row_idx in reversed(rows_to_delete):
+            ws.delete_rows(row_idx, 1)
+        
+        wb.save(self.excel_file)
+        wb.close()
+    
+    def save_order(self, order_date, menu_month, menu_week, menu_day, lunch_people, dinner_people, total_amount, notes, order_items):
+        orders_file = "excel_files/orders.xlsx"
+        
+        if os.path.exists(orders_file):
+            wb = load_workbook(orders_file)
+            ws = wb.active
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Orders"
+            ws.append(["OrderDate", "MenuMonth", "MenuWeek", "MenuDay", "LunchPeople", "DinnerPeople", "TotalAmount", "Notes", "OrderItems"])
+        
+        import json
+        order_items_json = json.dumps(order_items, ensure_ascii=False)
+        
+        ws.append([order_date, menu_month, menu_week, menu_day, lunch_people, dinner_people, total_amount, notes, order_items_json])
+        
+        wb.save(orders_file)
+        wb.close()
+    
+    def get_saved_orders(self, from_date=None):
+        orders_file = "excel_files/orders.xlsx"
+        
+        if not os.path.exists(orders_file):
+            return []
+        
+        wb = load_workbook(orders_file)
+        ws = wb.active
+        
+        orders = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[0]:
+                order_date_str = row[0]
+                if isinstance(order_date_str, datetime):
+                    order_date = order_date_str
+                else:
+                    try:
+                        order_date = datetime.strptime(order_date_str, "%d/%m/%Y")
+                    except:
+                        continue
+                
+                if from_date and order_date < from_date:
+                    continue
+                
+                import json
+                try:
+                    order_items = json.loads(row[8]) if len(row) > 8 and row[8] else []
+                except:
+                    order_items = []
+                
+                orders.append({
+                    'order_date': order_date_str if isinstance(order_date_str, str) else order_date.strftime("%d/%m/%Y"),
+                    'menu_month': row[1],
+                    'menu_week': row[2],
+                    'menu_day': row[3] if len(row) > 3 else '',
+                    'lunch_people': row[4] if len(row) > 4 else 0,
+                    'dinner_people': row[5] if len(row) > 5 else 0,
+                    'total_amount': row[6] if len(row) > 6 else 0,
+                    'notes': row[7] if len(row) > 7 and row[7] else '',
+                    'order_items': order_items
+                })
+        
+        wb.close()
+        return orders
+    
+    def delete_order(self, order_date):
+        orders_file = "excel_files/orders.xlsx"
+        
+        if not os.path.exists(orders_file):
+            return
+        
+        wb = load_workbook(orders_file)
+        ws = wb.active
+        
+        rows_to_delete = []
+        for idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
+            if row[0].value:
+                row_date = row[0].value
+                if isinstance(row_date, datetime):
+                    row_date_str = row_date.strftime("%d/%m/%Y")
+                else:
+                    row_date_str = row_date
+                
+                if row_date_str == order_date:
+                    rows_to_delete.append(idx)
+        
+        for row_idx in reversed(rows_to_delete):
+            ws.delete_rows(row_idx, 1)
+        
+        wb.save(orders_file)
+        wb.close()

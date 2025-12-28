@@ -35,14 +35,14 @@ class MealRegistrationPage:
         header_frame.pack(fill='x')
         header_frame.pack_propagate(False)
         
-        title_label = tk.Label(
+        self.title_label = tk.Label(
             header_frame,
             text=f"DANH SÁCH CNV ĐĂNG KÝ SUẤT ĂN NGÀY {self.date_str}",
             font=FONTS['header'],
             bg=COLORS['primary'],
             fg=COLORS['white']
         )
-        title_label.pack(pady=15)
+        self.title_label.pack(pady=15)
         
         back_btn = tk.Button(
             header_frame,
@@ -62,6 +62,30 @@ class MealRegistrationPage:
         btn_frame = tk.Frame(toolbar_frame, bg=COLORS['light_bg'])
         btn_frame.pack(side='left', padx=10, pady=15)
         
+        tk.Label(btn_frame, text="Ngày:", font=FONTS['normal'], bg=COLORS['light_bg']).pack(side='left', padx=(0, 5))
+        
+        date_frame = tk.Frame(btn_frame, bg=COLORS['light_bg'])
+        date_frame.pack(side='left', padx=(0, 10))
+        
+        self.day_combo = ttk.Combobox(date_frame, values=list(range(1, 32)), width=4, font=FONTS['small'], state='readonly')
+        self.day_combo.set(self.current_date.day)
+        self.day_combo.pack(side='left', padx=(0, 2))
+        self.day_combo.bind('<<ComboboxSelected>>', lambda e: self.update_date())
+        
+        tk.Label(date_frame, text="/", font=FONTS['normal'], bg=COLORS['light_bg']).pack(side='left')
+        
+        self.month_combo = ttk.Combobox(date_frame, values=list(range(1, 13)), width=4, font=FONTS['small'], state='readonly')
+        self.month_combo.set(self.current_date.month)
+        self.month_combo.pack(side='left', padx=(2, 2))
+        self.month_combo.bind('<<ComboboxSelected>>', lambda e: self.update_date())
+        
+        tk.Label(date_frame, text="/", font=FONTS['normal'], bg=COLORS['light_bg']).pack(side='left')
+        
+        self.year_combo = ttk.Combobox(date_frame, values=list(range(self.current_date.year - 1, self.current_date.year + 3)), width=6, font=FONTS['small'], state='readonly')
+        self.year_combo.set(self.current_date.year)
+        self.year_combo.pack(side='left', padx=(2, 0))
+        self.year_combo.bind('<<ComboboxSelected>>', lambda e: self.update_date())
+        
         tk.Button(
             btn_frame,
             text="💾 Lưu",
@@ -80,36 +104,6 @@ class MealRegistrationPage:
             fg=COLORS['white'],
             width=12,
             command=self.load_data
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="🌅 Thực đơn trưa",
-            font=FONTS['small_bold'],
-            bg=COLORS['info'],
-            fg=COLORS['white'],
-            width=16,
-            command=self.open_morning_menu
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="🌆 Thực đơn chiều",
-            font=FONTS['small_bold'],
-            bg=COLORS['info'],
-            fg=COLORS['white'],
-            width=16,
-            command=self.open_evening_menu
-        ).pack(side='left', padx=5)
-        
-        tk.Button(
-            btn_frame,
-            text="📊 Tổng hợp thực đơn",
-            font=FONTS['small_bold'],
-            bg=COLORS['warning'],
-            fg=COLORS['white'],
-            width=18,
-            command=self.open_summary_menu
         ).pack(side='left', padx=5)
     
     def _create_table(self, parent):
@@ -171,6 +165,21 @@ class MealRegistrationPage:
         self.tree.tag_configure('total_row', background='#ffffcc', font=FONTS['table_header'])
         
         self.tree.bind('<Double-1>', self.on_double_click)
+    
+    def update_date(self):
+        try:
+            day = int(self.day_combo.get())
+            month = int(self.month_combo.get())
+            year = int(self.year_combo.get())
+            
+            self.current_date = datetime(year, month, day)
+            self.date_str = self.current_date.strftime("%d/%m/%Y")
+            
+            self.title_label.config(text=f"DANH SÁCH CNV ĐĂNG KÝ SUẤT ĂN NGÀY {self.date_str}")
+            
+            self.load_data()
+        except ValueError as e:
+            messagebox.showerror("Lỗi", f"Ngày không hợp lệ: {e}")
     
     def load_data(self):
         for item in self.tree.get_children():
@@ -716,6 +725,7 @@ class MealRegistrationPage:
         style = ttk.Style()
         style.configure("Manage.Treeview", background=COLORS['white'], foreground="black", rowheight=30, fieldbackground=COLORS['white'], font=FONTS['table'])
         style.configure("Manage.Treeview.Heading", font=FONTS['table_header'], background=COLORS['darker'], foreground=COLORS['white'], relief='flat')
+        style.map("Manage.Treeview.Heading", background=[('active', COLORS['darker'])], foreground=[('active', COLORS['white'])])
         style.map('Manage.Treeview', background=[('selected', COLORS['primary'])])
         
         scrollbar = ttk.Scrollbar(container_frame, orient='vertical')
@@ -787,6 +797,7 @@ class MealRegistrationPage:
         style = ttk.Style()
         style.configure("Summary.Treeview", background=COLORS['white'], foreground="black", rowheight=30, fieldbackground=COLORS['white'], font=FONTS['table'])
         style.configure("Summary.Treeview.Heading", font=FONTS['table_header'], background=COLORS['darker'], foreground=COLORS['white'], relief='flat')
+        style.map("Summary.Treeview.Heading", background=[('active', COLORS['darker'])], foreground=[('active', COLORS['white'])])
         style.map('Summary.Treeview', background=[('selected', COLORS['primary'])])
         
         scrollbar = ttk.Scrollbar(container_frame, orient='vertical')
@@ -797,10 +808,10 @@ class MealRegistrationPage:
         
         summary_tree.heading('STT', text='TT', anchor='center')
         summary_tree.heading('Name', text='Tên thực phẩm', anchor='w')
-        summary_tree.heading('Qty', text='Định mức Kg', anchor='center')
+        summary_tree.heading('Qty', text='Định mức', anchor='center')
         summary_tree.heading('Meals', text='Số phần ăn', anchor='center')
-        summary_tree.heading('Unit', text='Đơn vị Kg', anchor='center')
-        summary_tree.heading('Price', text='Đơn giá/Kg', anchor='center')
+        summary_tree.heading('Unit', text='Đơn vị', anchor='center')
+        summary_tree.heading('Price', text='Đơn giá', anchor='center')
         summary_tree.heading('Total', text='Thành tiền', anchor='center')
         summary_tree.heading('VAT', text='Trước VAT', anchor='center')
         
@@ -952,8 +963,8 @@ class MealRegistrationPage:
         
         products_data = self.data_manager.load_data("Products")
         fruits_data = self.data_manager.load_data("Fruits")
-        all_products = {row[1]: row[3] for row in products_data if row[1]}
-        all_products.update({row[1]: row[3] for row in fruits_data if row[1]})
+        all_products = {row[1]: {'unit': row[2], 'price': row[3]} for row in products_data if row[1]}
+        all_products.update({row[1]: {'unit': row[2], 'price': row[3]} for row in fruits_data if row[1]})
         product_names = list(all_products.keys())
         
         form_frame = tk.Frame(dialog, bg=COLORS['light_bg'])
@@ -965,17 +976,21 @@ class MealRegistrationPage:
         product_combo = ttk.Combobox(form_frame, values=product_names, width=30, font=FONTS['normal'])
         product_combo.grid(row=1, column=1, padx=10, pady=5)
         
-        tk.Label(form_frame, text="Đơn vị Kg:", font=FONTS['normal'], bg=COLORS['light_bg']).grid(row=1, column=2, sticky='e', padx=10, pady=5)
+        unit_label_text = tk.Label(form_frame, text="Đơn vị Kg:", font=FONTS['normal'], bg=COLORS['light_bg'])
+        unit_label_text.grid(row=1, column=2, sticky='e', padx=10, pady=5)
         unit_entry = tk.Entry(form_frame, width=15, font=FONTS['normal'])
         unit_entry.grid(row=1, column=3, padx=10, pady=5)
         
-        tk.Label(form_frame, text="Định mức Kg:", font=FONTS['normal'], bg=COLORS['light_bg']).grid(row=2, column=0, sticky='e', padx=10, pady=5)
+        qty_label_text = tk.Label(form_frame, text="Định mức Kg:", font=FONTS['normal'], bg=COLORS['light_bg'])
+        qty_label_text.grid(row=2, column=0, sticky='e', padx=10, pady=5)
         qty_label = tk.Label(form_frame, text="0", font=FONTS['normal'], bg=COLORS['light_bg'], width=15, anchor='w')
         qty_label.grid(row=2, column=1, padx=10, pady=5)
         
-        tk.Label(form_frame, text="Đơn giá/Kg:", font=FONTS['normal'], bg=COLORS['light_bg']).grid(row=2, column=2, sticky='e', padx=10, pady=5)
-        price_label = tk.Label(form_frame, text="0", font=FONTS['normal'], bg=COLORS['light_bg'], width=15, anchor='w')
-        price_label.grid(row=2, column=3, padx=10, pady=5)
+        price_label_text = tk.Label(form_frame, text="Đơn giá/Kg:", font=FONTS['normal'], bg=COLORS['light_bg'])
+        price_label_text.grid(row=2, column=2, sticky='e', padx=10, pady=5)
+        price_entry = tk.Entry(form_frame, width=15, font=FONTS['normal'])
+        price_entry.insert(0, "0")
+        price_entry.grid(row=2, column=3, padx=10, pady=5)
         
         tk.Label(form_frame, text="Thành tiền:", font=FONTS['normal'], bg=COLORS['light_bg']).grid(row=3, column=0, sticky='e', padx=10, pady=5)
         total_label = tk.Label(form_frame, text="0", font=FONTS['normal'], bg=COLORS['light_bg'], width=15, anchor='w')
@@ -988,14 +1003,25 @@ class MealRegistrationPage:
         def on_product_change(event=None):
             product_name = product_combo.get()
             if product_name in all_products:
-                price = all_products[product_name]
-                price_label.config(text=f"{price:,.0f}")
+                product_info = all_products[product_name]
+                unit = product_info['unit']
+                price = product_info['price']
+                
+                unit_label_text.config(text=f"Đơn vị {unit}:")
+                qty_label_text.config(text=f"Định mức {unit}:")
+                price_label_text.config(text=f"Đơn giá/{unit}:")
+                
+                unit_entry.delete(0, tk.END)
+                unit_entry.insert(0, "1")
+                
+                price_entry.delete(0, tk.END)
+                price_entry.insert(0, f"{price:,.0f}")
                 calculate_totals()
         
         def calculate_totals(event=None):
             try:
                 unit_val = float(unit_entry.get() or 0)
-                price_val = float(price_label.cget("text").replace(",", "") or 0)
+                price_val = float(price_entry.get().replace(",", "") or 0)
                 
                 if total_meals > 0:
                     qty_val = unit_val / total_meals
@@ -1021,6 +1047,7 @@ class MealRegistrationPage:
         product_combo.bind('<<ComboboxSelected>>', on_product_change)
         product_combo.bind('<KeyRelease>', on_keyrelease)
         unit_entry.bind('<KeyRelease>', calculate_totals)
+        price_entry.bind('<KeyRelease>', calculate_totals)
         
         menu_tree = None
         
@@ -1050,7 +1077,7 @@ class MealRegistrationPage:
             try:
                 qty = float(qty_label.cget("text").replace(",", ""))
                 unit = float(unit_entry.get())
-                price = float(price_label.cget("text").replace(",", ""))
+                price = float(price_entry.get().replace(",", ""))
                 total = unit * price
                 vat = total / 1.05
                 
@@ -1071,7 +1098,8 @@ class MealRegistrationPage:
                 product_combo.set('')
                 unit_entry.delete(0, tk.END)
                 qty_label.config(text="0")
-                price_label.config(text="0")
+                price_entry.delete(0, tk.END)
+                price_entry.insert(0, "0")
                 total_label.config(text="0")
                 vat_label.config(text="0")
                 
@@ -1117,6 +1145,7 @@ class MealRegistrationPage:
         style = ttk.Style()
         style.configure("Menu.Treeview", background=COLORS['white'], foreground="black", rowheight=30, fieldbackground=COLORS['white'], font=FONTS['table'])
         style.configure("Menu.Treeview.Heading", font=FONTS['table_header'], background=COLORS['darker'], foreground=COLORS['white'], relief='flat')
+        style.map("Menu.Treeview.Heading", background=[('active', COLORS['darker'])], foreground=[('active', COLORS['white'])])
         style.map('Menu.Treeview', background=[('selected', COLORS['primary'])])
         
         scrollbar = ttk.Scrollbar(container_frame, orient='vertical')
@@ -1127,10 +1156,10 @@ class MealRegistrationPage:
         
         menu_tree.heading('STT', text='TT', anchor='center')
         menu_tree.heading('Name', text='Tên thực phẩm', anchor='w')
-        menu_tree.heading('Qty', text='Định mức Kg', anchor='center')
+        menu_tree.heading('Qty', text='Định mức', anchor='center')
         menu_tree.heading('Meals', text='Số phần ăn', anchor='center')
-        menu_tree.heading('Unit', text='Đơn vị Kg', anchor='center')
-        menu_tree.heading('Price', text='Đơn giá/Kg', anchor='center')
+        menu_tree.heading('Unit', text='Đơn vị', anchor='center')
+        menu_tree.heading('Price', text='Đơn giá', anchor='center')
         menu_tree.heading('Total', text='Thành tiền', anchor='center')
         menu_tree.heading('VAT', text='Trước VAT', anchor='center')
         

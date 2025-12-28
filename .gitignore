@@ -14,3 +14,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# PyInstaller
+build/
+dist/
+*.spec
+*.ico
+convert_icon.py
