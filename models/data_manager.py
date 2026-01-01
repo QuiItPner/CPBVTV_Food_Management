@@ -585,7 +585,7 @@ class DataManager:
         from datetime import date
         
         month_str = str(month).zfill(2)
-        source_file = f"excel_files/DatHangTu{month_str}-{year}.xlsx"
+        source_file = f"excel_files/DatThucPham{month}-{year}.xlsx"
         
         if not os.path.exists(source_file):
             raise Exception(f"Không tìm thấy file {source_file}")
@@ -611,25 +611,18 @@ class DataManager:
                 ws_day = wb_source[sheet_date_name]
                 
                 for row in ws_day.iter_rows(min_row=2, values_only=True):
-                    if len(row) > 1 and row[1] and str(row[1]).strip().lower() == 'tổng cộng':
-                        if len(row) > 3 and row[3] is not None:
-                            total_meals += float(row[3])
-                        if len(row) > 4 and row[4] is not None:
-                            total_meals += float(row[4])
-                        break
-                
-                for row_idx, row in enumerate(ws_day.iter_rows(min_row=1, values_only=True), 1):
-                    if len(row) > 0 and row[0]:
-                        row_text = str(row[0]).upper().strip()
-                        if 'ĐẶT HÀNG' in row_text and 'THỰC PHẨM' in row_text:
-                            for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
-                                if len(cost_row) > 1 and cost_row[1]:
-                                    cell_text = str(cost_row[1]).strip().lower()
-                                    if 'tổng cộng' in cell_text or 'tong cong' in cell_text:
-                                        if len(cost_row) > 6 and cost_row[6] is not None:
-                                            total_cost = float(cost_row[6])
-                                        break
-                            break
+                    if len(row) > 1 and row[1]:
+                        cell_text = str(row[1]).strip().upper()
+                        
+                        if cell_text == 'TỔNG CỘNG':
+                            if len(row) > 6 and row[6] is not None:
+                                total_cost = float(row[6])
+                        
+                        elif cell_text == 'TRUNG BÌNH':
+                            if len(row) > 6 and row[6] is not None and total_cost > 0:
+                                overall_avg = float(row[6])
+                                if overall_avg > 0:
+                                    total_meals = int(total_cost / overall_avg)
             
             avg_price = total_cost / total_meals if total_meals > 0 else 0
             
@@ -673,7 +666,7 @@ class DataManager:
         from datetime import date
         
         month_str = str(month).zfill(2)
-        source_file = f"excel_files/DatHangTu{month_str}-{year}.xlsx"
+        source_file = f"excel_files/DatThucPham{month}-{year}.xlsx"
         
         if not os.path.exists(source_file):
             raise Exception(f"Không tìm thấy file {source_file}")
@@ -745,28 +738,18 @@ class DataManager:
                     ws_day = wb_source[sheet_date_name]
                     
                     for row in ws_day.iter_rows(min_row=2, values_only=True):
-                        if len(row) > 1 and row[1] and str(row[1]).strip().lower() == 'tổng cộng':
-                            if len(row) > 3 and row[3] is not None:
-                                total_meals += float(row[3])
-                            if len(row) > 4 and row[4] is not None:
-                                total_meals += float(row[4])
-                            break
-                    
-                    has_menu_data = False
-                    for row_idx, row in enumerate(ws_day.iter_rows(min_row=1, values_only=True), 1):
-                        if len(row) > 0 and row[0]:
-                            row_text = str(row[0]).upper().strip()
-                            if 'ĐẶT HÀNG' in row_text and 'THỰC PHẨM' in row_text:
-                                has_menu_data = True
-                                
-                                for cost_row in ws_day.iter_rows(min_row=row_idx + 1, values_only=True):
-                                    if len(cost_row) > 1 and cost_row[1]:
-                                        cell_text = str(cost_row[1]).strip().lower()
-                                        if 'tổng cộng' in cell_text or 'tong cong' in cell_text:
-                                            if len(cost_row) > 6 and cost_row[6] is not None:
-                                                total_cost = float(cost_row[6])
-                                            break
-                                break
+                        if len(row) > 1 and row[1]:
+                            cell_text = str(row[1]).strip().upper()
+                            
+                            if cell_text == 'TỔNG CỘNG':
+                                if len(row) > 6 and row[6] is not None:
+                                    total_cost = float(row[6])
+                            
+                            elif cell_text == 'TRUNG BÌNH':
+                                if len(row) > 6 and row[6] is not None and total_cost > 0:
+                                    overall_avg = float(row[6])
+                                    if overall_avg > 0:
+                                        total_meals = int(total_cost / overall_avg)
                 
                 avg_price = total_cost / total_meals if total_meals > 0 else 0
                 
@@ -967,94 +950,4 @@ class DataManager:
         wb.save(self.excel_file)
         wb.close()
     
-    def save_order(self, order_date, menu_month, menu_week, menu_day, lunch_people, dinner_people, total_amount, notes, order_items):
-        orders_file = "excel_files/orders.xlsx"
-        
-        if os.path.exists(orders_file):
-            wb = load_workbook(orders_file)
-            ws = wb.active
-        else:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Orders"
-            ws.append(["OrderDate", "MenuMonth", "MenuWeek", "MenuDay", "LunchPeople", "DinnerPeople", "TotalAmount", "Notes", "OrderItems"])
-        
-        import json
-        order_items_json = json.dumps(order_items, ensure_ascii=False)
-        
-        ws.append([order_date, menu_month, menu_week, menu_day, lunch_people, dinner_people, total_amount, notes, order_items_json])
-        
-        wb.save(orders_file)
-        wb.close()
-    
-    def get_saved_orders(self, from_date=None):
-        orders_file = "excel_files/orders.xlsx"
-        
-        if not os.path.exists(orders_file):
-            return []
-        
-        wb = load_workbook(orders_file)
-        ws = wb.active
-        
-        orders = []
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[0]:
-                order_date_str = row[0]
-                if isinstance(order_date_str, datetime):
-                    order_date = order_date_str
-                else:
-                    try:
-                        order_date = datetime.strptime(order_date_str, "%d/%m/%Y")
-                    except:
-                        continue
-                
-                if from_date and order_date < from_date:
-                    continue
-                
-                import json
-                try:
-                    order_items = json.loads(row[8]) if len(row) > 8 and row[8] else []
-                except:
-                    order_items = []
-                
-                orders.append({
-                    'order_date': order_date_str if isinstance(order_date_str, str) else order_date.strftime("%d/%m/%Y"),
-                    'menu_month': row[1],
-                    'menu_week': row[2],
-                    'menu_day': row[3] if len(row) > 3 else '',
-                    'lunch_people': row[4] if len(row) > 4 else 0,
-                    'dinner_people': row[5] if len(row) > 5 else 0,
-                    'total_amount': row[6] if len(row) > 6 else 0,
-                    'notes': row[7] if len(row) > 7 and row[7] else '',
-                    'order_items': order_items
-                })
-        
-        wb.close()
-        return orders
-    
-    def delete_order(self, order_date):
-        orders_file = "excel_files/orders.xlsx"
-        
-        if not os.path.exists(orders_file):
-            return
-        
-        wb = load_workbook(orders_file)
-        ws = wb.active
-        
-        rows_to_delete = []
-        for idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
-            if row[0].value:
-                row_date = row[0].value
-                if isinstance(row_date, datetime):
-                    row_date_str = row_date.strftime("%d/%m/%Y")
-                else:
-                    row_date_str = row_date
-                
-                if row_date_str == order_date:
-                    rows_to_delete.append(idx)
-        
-        for row_idx in reversed(rows_to_delete):
-            ws.delete_rows(row_idx, 1)
-        
-        wb.save(orders_file)
-        wb.close()
+

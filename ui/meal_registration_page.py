@@ -412,17 +412,6 @@ class MealRegistrationPage:
         try:
             meal_file = self.data_manager.save_meal_registration(self.current_date, self.registrations)
             
-            total_lunch = sum(float(reg['lunch']) for reg in self.registrations)
-            total_dinner = sum(float(reg['dinner']) for reg in self.registrations)
-            
-            self.data_manager.save_menu_summary(
-                self.current_date,
-                self.morning_menu_items,
-                self.evening_menu_items,
-                total_lunch,
-                total_dinner
-            )
-            
             messagebox.showinfo("Thành công", f"Đã lưu dữ liệu vào file:\n{meal_file}")
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể lưu: {str(e)}")

@@ -1412,6 +1412,16 @@ class MainWindow:
                 messagebox.showwarning("Cảnh báo", "Vui lòng thêm ít nhất một món vào menu!")
                 return
             
+            if new_menu_name.lower() != (menu_name.lower() if menu_name else ""):
+                existing_menu = self.data_manager.get_menu_items(new_menu_name)
+                if existing_menu and (existing_menu.get('lunch') or existing_menu.get('dinner')):
+                    response = messagebox.askyesno(
+                        "Menu đã tồn tại",
+                        f"Menu '{new_menu_name}' đã tồn tại.\nBạn có muốn thay thế menu cũ không?"
+                    )
+                    if not response:
+                        return
+            
             self.data_manager.save_menu(new_menu_name, lunch_items, dinner_items)
             messagebox.showinfo("Thành công", f"Đã lưu menu '{new_menu_name}'!")
             on_save_callback()
@@ -1789,7 +1799,7 @@ class MainWindow:
             except ValueError:
                 pass
         
-        def load_order_data():
+        def load_menu_data():
             month = month_combo.get()
             week = week_combo.get()
             day = day_combo.get()
@@ -1852,6 +1862,84 @@ class MainWindow:
                     })
             
             refresh_order_tree()
+        
+        def load_order_data():
+            from openpyxl import load_workbook
+            import os
+            
+            day_order = order_day_combo.get()
+            month_order = order_month_combo.get()
+            year = order_year_combo.get()
+            
+            if not day_order or not month_order or not year:
+                messagebox.showwarning("Cảnh báo", "Vui lòng chọn ngày đặt hàng!")
+                return
+            
+            excel_folder = "excel_files"
+            file_name = f"DatThucPham{month_order}-{year}.xlsx"
+            file_path = os.path.join(excel_folder, file_name)
+            
+            if not os.path.exists(file_path):
+                messagebox.showwarning("Không tìm thấy", f"Không tìm thấy file báo cáo:\n{file_path}")
+                return
+            
+            sheet_name = f"{day_order}-{month_order}-{year}"
+            
+            try:
+                wb = load_workbook(file_path)
+                if sheet_name not in wb.sheetnames:
+                    messagebox.showwarning("Không tìm thấy", f"Không tìm thấy báo cáo cho ngày {sheet_name}")
+                    wb.close()
+                    return
+                
+                ws = wb[sheet_name]
+                
+                order_items.clear()
+                
+                lunch_people_val = 0
+                dinner_people_val = 0
+                
+                for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    if not row[0] or row[1] in ['TỔNG CỘNG', 'Đơn giá phần ăn trưa', 'Đơn giá phần ăn chiều', 'TRUNG BÌNH']:
+                        continue
+                    
+                    product_name = row[1]
+                    meal_type = row[2]
+                    qty = float(row[3]) if row[3] else 0
+                    portions = int(row[4]) if row[4] else 0
+                    unit = ws.cell(row=row_idx, column=6).value
+                    price = float(row[6]) if row[6] else 0
+                    
+                    if meal_type == 'Trưa':
+                        meal_type_code = 'lunch'
+                        lunch_people_val = portions
+                    else:
+                        meal_type_code = 'dinner'
+                        dinner_people_val = portions
+                    
+                    order_items.append({
+                        'meal_type': meal_type_code,
+                        'product_name': product_name,
+                        'qty': qty,
+                        'unit': unit,
+                        'portions': portions,
+                        'price': price
+                    })
+                
+                if lunch_people_val > 0:
+                    lunch_people_entry.delete(0, tk.END)
+                    lunch_people_entry.insert(0, str(lunch_people_val))
+                
+                if dinner_people_val > 0:
+                    dinner_people_entry.delete(0, tk.END)
+                    dinner_people_entry.insert(0, str(dinner_people_val))
+                
+                wb.close()
+                refresh_order_tree()
+                messagebox.showinfo("Thành công", f"Đã tải dữ liệu từ báo cáo ngày {sheet_name}")
+                
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể đọc file báo cáo:\n{str(e)}")
         
         def show_add_edit_dialog(edit_index=None):
             edit_dialog = tk.Toplevel(dialog)
@@ -2043,70 +2131,7 @@ class MainWindow:
         
         order_tree.bind('<Double-Button-1>', on_double_click)
         
-        def save_current_order():
-            if not order_items:
-                messagebox.showwarning("Cảnh báo", "Không có dữ liệu để lưu!")
-                return
-            
-            day_order = order_day_combo.get()
-            month_order = order_month_combo.get()
-            year = order_year_combo.get()
-            
-            if not day_order or not month_order or not year:
-                messagebox.showwarning("Cảnh báo", "Vui lòng chọn ngày đặt hàng!")
-                return
-            
-            menu_month = month_combo.get()
-            menu_week = week_combo.get()
-            menu_day = day_combo.get()
-            lunch_people = lunch_people_entry.get()
-            dinner_people = dinner_people_entry.get()
-            
-            if not menu_month or not menu_week or not menu_day or not lunch_people or not dinner_people:
-                messagebox.showwarning("Cảnh báo", "Vui lòng điền đầy đủ thông tin!")
-                return
-            
-            try:
-                lunch_people = int(lunch_people)
-                dinner_people = int(dinner_people)
-            except ValueError:
-                messagebox.showerror("Lỗi", "Số người ăn phải là số nguyên!")
-                return
-            
-            lunch_total = 0
-            dinner_total = 0
-            
-            for item_data in order_items:
-                qty = item_data['qty']
-                portions = item_data['portions']
-                price = item_data['price']
-                item_total = qty * portions * price
-                
-                if item_data['meal_type'] == 'lunch':
-                    lunch_total += item_total
-                else:
-                    dinner_total += item_total
-            
-            grand_total = lunch_total + dinner_total
-            
-            order_date_str = f"{day_order}/{month_order}/{year}"
-            
-            try:
-                self.data_manager.save_order(
-                    order_date_str,
-                    menu_month,
-                    menu_week,
-                    menu_day,
-                    lunch_people,
-                    dinner_people,
-                    grand_total,
-                    notes_entry.get(),
-                    order_items
-                )
-                messagebox.showinfo("Thành công", f"Đã lưu đơn hàng ngày {order_date_str}!")
-            except Exception as e:
-                messagebox.showerror("Lỗi", f"Không thể lưu đơn hàng: {str(e)}")
-        
+
         def export_to_excel():
             if not order_items:
                 messagebox.showwarning("Cảnh báo", "Không có dữ liệu để xuất!")
@@ -2169,6 +2194,9 @@ class MainWindow:
                 lunch_total = 0
                 dinner_total = 0
                 
+                lunch_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+                dinner_fill = PatternFill(start_color="FFE0B2", end_color="FFE0B2", fill_type="solid")
+                
                 for idx, item_data in enumerate(order_items):
                     stt = idx + 1
                     product_name = item_data['product_name']
@@ -2176,15 +2204,18 @@ class MainWindow:
                     unit = item_data['unit']
                     portions = item_data['portions']
                     price = item_data['price']
+                    meal_type = item_data['meal_type']
                     
                     total_qty = qty * portions
                     item_total = qty * portions * price
                     before_vat = price / 1.05
                     
-                    if item_data['meal_type'] == 'lunch':
+                    if meal_type == 'lunch':
                         lunch_total += item_total
+                        row_fill = lunch_fill
                     else:
                         dinner_total += item_total
+                        row_fill = dinner_fill
                     
                     row = [stt, product_name, qty, portions, total_qty, price, item_total, before_vat]
                     ws.append(row)
@@ -2192,6 +2223,7 @@ class MainWindow:
                     for cell in ws[ws.max_row]:
                         cell.border = border
                         cell.alignment = Alignment(horizontal='center', vertical='center')
+                        cell.fill = row_fill
                     
                     ws.cell(row=ws.max_row, column=2).alignment = Alignment(horizontal='left', vertical='center')
                     ws.cell(row=ws.max_row, column=3).number_format = '#,##0.00'
@@ -2300,7 +2332,7 @@ class MainWindow:
             fg=COLORS['white'],
             width=18,
             height=2,
-            command=load_order_data
+            command=load_menu_data
         ).pack(side='left', padx=10)
         
         tk.Button(
@@ -2316,17 +2348,6 @@ class MainWindow:
         
         tk.Button(
             btn_frame,
-            text="💾 Lưu đơn hàng",
-            font=FONTS['button'],
-            bg='#9c27b0',
-            fg=COLORS['white'],
-            width=18,
-            height=2,
-            command=save_current_order
-        ).pack(side='left', padx=10)
-        
-        tk.Button(
-            btn_frame,
             text="✗ Đóng",
             font=FONTS['button'],
             bg=COLORS['secondary'],
@@ -2335,146 +2356,4 @@ class MainWindow:
             height=2,
             command=dialog.destroy
         ).pack(side='left', padx=10)
-    
-    def show_saved_orders(self):
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Đơn Hàng Đã Đặt")
-        dialog.geometry("1500x700")
-        dialog.configure(bg=COLORS['white'])
-        dialog.transient(self.root)
-        dialog.grab_set()
-        
-        screen_width = dialog.winfo_screenwidth()
-        screen_height = dialog.winfo_screenheight()
-        x = (screen_width - 1500) // 2
-        y = (screen_height - 700) // 2
-        dialog.geometry(f"1500x700+{x}+{y}")
-        
-        header_frame = tk.Frame(dialog, bg='#9c27b0', height=60)
-        header_frame.pack(fill='x')
-        header_frame.pack_propagate(False)
-        
-        tk.Label(
-            header_frame,
-            text="ĐƠN HÀNG ĐÃ ĐẶT",
-            font=FONTS['header'],
-            bg='#9c27b0',
-            fg=COLORS['white']
-        ).pack(pady=15)
-        
-        result_frame = tk.Frame(dialog, bg=COLORS['white'])
-        result_frame.pack(expand=True, fill='both', padx=20, pady=15)
-        
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("SavedOrders.Treeview", background='#e8f5e9', foreground="black", rowheight=30, fieldbackground='#e8f5e9', font=FONTS['table'])
-        style.configure("SavedOrders.Treeview.Heading", font=FONTS['table_header'], background='#9c27b0', foreground=COLORS['white'], relief='flat')
-        style.map("SavedOrders.Treeview.Heading", background=[('active', '#9c27b0')], foreground=[('active', COLORS['white'])])
-        style.map('SavedOrders.Treeview', background=[('selected', '#7b1fa2')], foreground=[('selected', 'white')])
-        
-        scrollbar = ttk.Scrollbar(result_frame, orient='vertical')
-        scrollbar.pack(side='right', fill='y')
-        
-        orders_tree = ttk.Treeview(
-            result_frame,
-            columns=('OrderDate', 'MenuMonth', 'MenuWeek', 'MenuDay', 'LunchPeople', 'DinnerPeople', 'TotalAmount', 'Notes'),
-            show='headings',
-            yscrollcommand=scrollbar.set,
-            style="SavedOrders.Treeview"
-        )
-        scrollbar.config(command=orders_tree.yview)
-        
-        orders_tree.heading('OrderDate', text='Ngày đặt hàng', anchor='center')
-        orders_tree.heading('MenuMonth', text='Menu tháng', anchor='center')
-        orders_tree.heading('MenuWeek', text='Menu tuần', anchor='center')
-        orders_tree.heading('MenuDay', text='Menu thứ', anchor='center')
-        orders_tree.heading('LunchPeople', text='Số người trưa', anchor='center')
-        orders_tree.heading('DinnerPeople', text='Số người chiều', anchor='center')
-        orders_tree.heading('TotalAmount', text='Tổng tiền', anchor='center')
-        orders_tree.heading('Notes', text='Ghi chú', anchor='w')
-        
-        orders_tree.column('OrderDate', width=120, anchor='center', stretch=False)
-        orders_tree.column('MenuMonth', width=100, anchor='center', stretch=False)
-        orders_tree.column('MenuWeek', width=100, anchor='center', stretch=False)
-        orders_tree.column('MenuDay', width=100, anchor='center', stretch=False)
-        orders_tree.column('LunchPeople', width=120, anchor='center', stretch=False)
-        orders_tree.column('DinnerPeople', width=120, anchor='center', stretch=False)
-        orders_tree.column('TotalAmount', width=150, anchor='center', stretch=False)
-        orders_tree.column('Notes', width=500, anchor='w', stretch=True)
-        
-        orders_tree.pack(expand=True, fill='both')
-        
-        def refresh_orders_list():
-            for item in orders_tree.get_children():
-                orders_tree.delete(item)
-            
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            orders = self.data_manager.get_saved_orders(from_date=today)
-            
-            for order in orders:
-                orders_tree.insert('', 'end', values=(
-                    order['order_date'],
-                    order['menu_month'],
-                    order['menu_week'],
-                    order.get('menu_day', ''),
-                    order['lunch_people'],
-                    order['dinner_people'],
-                    f"{order['total_amount']:,.0f}",
-                    order['notes']
-                ))
-        
-        def delete_selected_order():
-            selected = orders_tree.selection()
-            if not selected:
-                messagebox.showwarning("Cảnh báo", "Vui lòng chọn một đơn hàng để xóa!")
-                return
-            
-            item_id = selected[0]
-            item_values = orders_tree.item(item_id, 'values')
-            order_date = item_values[0]
-            
-            if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xóa đơn hàng ngày {order_date}?"):
-                try:
-                    self.data_manager.delete_order(order_date)
-                    refresh_orders_list()
-                    messagebox.showinfo("Thành công", f"Đã xóa đơn hàng ngày {order_date}!")
-                except Exception as e:
-                    messagebox.showerror("Lỗi", f"Không thể xóa đơn hàng: {str(e)}")
-        
-        btn_frame = tk.Frame(dialog, bg=COLORS['white'])
-        btn_frame.pack(pady=10)
-        
-        tk.Button(
-            btn_frame,
-            text="🔄 Làm mới",
-            font=FONTS['button'],
-            bg=COLORS['info'],
-            fg=COLORS['white'],
-            width=18,
-            height=2,
-            command=refresh_orders_list
-        ).pack(side='left', padx=10)
-        
-        tk.Button(
-            btn_frame,
-            text="🗑️ Xóa đơn hàng",
-            font=FONTS['button'],
-            bg=COLORS['danger'],
-            fg=COLORS['white'],
-            width=18,
-            height=2,
-            command=delete_selected_order
-        ).pack(side='left', padx=10)
-        
-        tk.Button(
-            btn_frame,
-            text="✗ Đóng",
-            font=FONTS['button'],
-            bg=COLORS['secondary'],
-            fg=COLORS['white'],
-            width=18,
-            height=2,
-            command=dialog.destroy
-        ).pack(side='left', padx=10)
-        
-        refresh_orders_list()
+
