@@ -597,8 +597,7 @@ class DataManager:
         data_rows = []
         
         for day in range(1, num_days + 1):
-            day_str = str(day).zfill(2)
-            sheet_date_name = f"{day_str}-{month_str}-{year}"
+            sheet_date_name = f"{day}-{month}-{year}"
             
             current_date = date(year, month, day)
             weekday = current_date.weekday()
@@ -724,8 +723,7 @@ class DataManager:
             data_rows = []
             
             for day in range(1, num_days + 1):
-                day_str = str(day).zfill(2)
-                sheet_date_name = f"{day_str}-{month_str}-{year}"
+                sheet_date_name = f"{day}-{month}-{year}"
                 
                 current_date = date(year, month, day)
                 weekday = current_date.weekday()
